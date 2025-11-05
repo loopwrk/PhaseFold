@@ -35,6 +35,14 @@ can both hear and see the differences when paramaters are adjusted.
 
 ---
 
+### 🎥 Demo
+
+**[View demo](https://www.loom.com/share/3a4015ec5a194989aca2258bbe519c7a)**
+
+Preview:
+
+## ![preview](media/demo.png)
+
 ### ⚠️ Listening guidance
 
 - PhaseFold produces **pure sine waves** and **binaural tones**. Keep playback
@@ -288,4 +296,4 @@ Playlist of relevant artists: 🎧
 
 ### License
 
-MIT License © 2025 — use, modify, and distribute with attribution.
+GNU General Public License v3.0 (GPL-3.0) © 2025
