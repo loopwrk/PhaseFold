@@ -1168,6 +1168,10 @@ class audioApp(tk.Tk):
             preset_frame, text="Save...", command=self.save_current_as_preset
         ).pack(side="left", padx=2)
 
+        ttk.Button(
+            preset_frame, text="Reset", command=self.reset_to_minimum
+        ).pack(side="left", padx=2)
+
         r += 1
 
         tk.Label(
@@ -1709,6 +1713,38 @@ class audioApp(tk.Tk):
         # Bind Enter key
         entry.bind("<Return>", lambda e: do_save())
         entry.bind("<Escape>", lambda e: cancel())
+
+    def reset_to_minimum(self):
+        """Reset all parameters to their off or minimum values."""
+        # Set all parameters to off (0) or minimum values
+        self.var_dur.set(5)          # Minimum duration for quick testing
+        self.var_base.set(20)         # Lowest frequency
+        self.var_voices.set(1)        # Minimum voices
+        self.var_layers.set(1)        # Minimum layers
+        self.var_vdelay.set(0)        # Off
+        self.var_breath.set(0.0)      # Off
+        self.var_width.set(0)         # Off (mono)
+        self.var_bdel.set(0)          # Off
+        self.var_bamt.set(0)          # Off
+        self.var_even.set(0)          # Off
+        self.var_odd.set(0)           # Off
+        self.var_comb.set(0)          # Off
+        self.var_curve.set(1.2)       # Minimum collapse curve
+
+        # Update visualizations
+        self.update_base_f0_note()
+
+        # Keep the time slider in range if audio already exists
+        try:
+            self._refresh_time_slider_limit()
+        except Exception:
+            pass
+
+        # Clear preset selection to indicate custom state
+        self.preset_var.set("")
+
+        # Update status
+        self.status.config(text="Reset to minimum values")
 
     # ---- Preset Validation Helpers ----
     def _validate_preset(self, preset: dict):
