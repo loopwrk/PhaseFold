@@ -74,7 +74,6 @@
     "comb": 0.0,
     "curve": 2.4
   },
-
   "Hexagram Weave": {
     "dur": 520.0,
     "base": 120.0,
@@ -180,7 +179,6 @@
     "comb": 0.0,
     "curve": 1.4
   },
-
   "Diabolus": {
     "dur": 61.6,
     "base": 196.0,
@@ -286,7 +284,6 @@
     "comb": 0.1,
     "curve": 1.9
   },
-
   "Unresolved Tension": {
     "dur": 114,
     "base": 88.0,
