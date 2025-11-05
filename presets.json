@@ -256,7 +256,7 @@
   },
   "Om)))": {
     "dur": 300.0,
-    "base": 65.5,
+    "base": 136.1,
     "voices": 9,
     "layers": 5,
     "vdelay": 23.5,
@@ -302,7 +302,7 @@
   "Constant Collapse": {
     "dur": 25.0,
     "base": 220.0,
-    "voices": 12,
+    "voices": 9,
     "layers": 5,
     "vdelay": 0.0,
     "breath": 0.3,
@@ -437,7 +437,7 @@
   "Catastrophic Convergence": {
     "dur": 18.0,
     "base": 523.25,
-    "voices": 12,
+    "voices": 9,
     "layers": 8,
     "vdelay": 0.0,
     "breath": 0.42,

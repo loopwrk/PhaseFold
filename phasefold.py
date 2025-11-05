@@ -846,7 +846,7 @@ class audioApp(tk.Tk):
     _PRESET_RANGES = {
         "dur": (5, 600),
         "base": (20, 220),
-        "voices": (1, 12),
+        "voices": (1, 9),
         "layers": (1, 9),
         "vdelay": (0, 30),
         "breath": (0.0, 0.3),
@@ -1089,6 +1089,7 @@ class audioApp(tk.Tk):
                 value_frame,
                 width=7,
                 bg=self._LEFT_BG,
+                fg="#000000",
                 relief="solid",
                 borderwidth=1,
                 font=self._label_font,
@@ -1247,6 +1248,7 @@ class audioApp(tk.Tk):
             value_frame,
             width=7,
             bg=self._LEFT_BG,
+            fg="#000000",
             relief="solid",
             borderwidth=1,
             font=self._label_font,
@@ -1290,7 +1292,7 @@ class audioApp(tk.Tk):
         r += 1
         add_slider(ctrl, r, "Layers (FM/AM depth)", self.var_layers, 1, 5, 1)
         r += 1
-        add_slider(ctrl, r, "Voices per layer", self.var_voices, 1, 12, 1)
+        add_slider(ctrl, r, "Voices per layer", self.var_voices, 1, 9, 1)
         r += 1
 
         # Parameter Notebook for advanced sections
