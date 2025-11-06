@@ -230,12 +230,18 @@ def generate_app(
     # Base effects emergence envelope: fade in complexity during voice delay period
     # This creates a true "one → many" experience by starting with a pure base tone
     # and gradually introducing binaural split, harmonics, comb, stereo, breath, and drift
+    # Timeline: [0-35% = pure tone] → [35-100% = effects fade in] → [100%+ = voices fade in]
     base_effects_env = np.ones(SAMPLE_TOTAL)
     if voice_delay_samps > 0:
-        # During delay: effects fade from 0 to 1
-        fade_end = min(SAMPLE_TOTAL, voice_delay_samps)
-        if fade_end > 0:
-            base_effects_env[:fade_end] = np.linspace(0, 1, fade_end)
+        # First 35% of delay: pure base tone (effects = 0)
+        pure_tone_samps = int(0.35 * voice_delay_samps)
+        base_effects_env[:pure_tone_samps] = 0.0
+
+        # Remaining 65%: effects fade from 0 to 1
+        effects_fade_end = min(SAMPLE_TOTAL, voice_delay_samps)
+        effects_fade_length = effects_fade_end - pure_tone_samps
+        if effects_fade_length > 0:
+            base_effects_env[pure_tone_samps:effects_fade_end] = np.linspace(0, 1, effects_fade_length)
 
     # Create a small, natural-sounding detune for each voice:
     # 1. Initialize a reproducible random number generator with the given seed.
