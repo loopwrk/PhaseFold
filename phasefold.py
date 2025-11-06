@@ -1322,7 +1322,7 @@ class audioApp(tk.Tk):
         # Temporal parameters
         temporal_frame = tk.Frame(param_notebook, bg=self._LEFT_BG)
         temporal_frame.columnconfigure(1, weight=1)
-        add_slider(temporal_frame, 0, "Voice delay (s)", self.var_vdelay, 0, 30, 0.5)
+        add_slider(temporal_frame, 0, "Voice delay (s)", self.var_vdelay, 5, 30, 0.5)
         add_slider(temporal_frame, 1, "Breath rate (Hz)", self.var_breath, 0.0, 0.3, 0.005)
         add_slider(temporal_frame, 2, "Collapse curve", self.var_curve, 1.2, 3.5, 0.05)
         param_notebook.add(temporal_frame, text="Temporal")
@@ -1769,7 +1769,7 @@ class audioApp(tk.Tk):
         self.var_base.set(20)         # Lowest frequency
         self.var_voices.set(1)        # Minimum voices
         self.var_layers.set(1)        # Minimum layers
-        self.var_vdelay.set(0)        # Off
+        self.var_vdelay.set(5)        # Minimum voice delay
         self.var_breath.set(0.0)      # Off
         self.var_width.set(0)         # Off (mono)
         self.var_bdel.set(0)          # Off
