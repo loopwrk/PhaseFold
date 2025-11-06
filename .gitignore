@@ -1,1 +1,9 @@
-__pycache__/phasefold.cpython-313.pyc
+# Python cache files
+__pycache__/
+
+# Environments
+.env
+.venv
+env/
+venv/
+

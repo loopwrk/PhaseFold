@@ -232,16 +232,22 @@ def generate_app(
     # and gradually introducing binaural split, harmonics, comb, stereo, breath, and drift
     # Timeline: [0-35% = pure tone] → [35-100% = effects fade in] → [100%+ = voices fade in]
     base_effects_env = np.ones(SAMPLE_TOTAL)
+    pure_tone_volume_env = np.ones(SAMPLE_TOTAL)
     if voice_delay_samps > 0:
         # First 35% of delay: pure base tone (effects = 0)
         pure_tone_samps = int(0.35 * voice_delay_samps)
         base_effects_env[:pure_tone_samps] = 0.0
 
-        # Remaining 65%: effects fade from 0 to 1
+        # Volume envelope: ramp from 0 to 40% during pure tone phase, then 70% to 100% during effects phase
+        if pure_tone_samps > 0:
+            pure_tone_volume_env[:pure_tone_samps] = np.linspace(0, 0.4, pure_tone_samps)
+
+        # Remaining 65%: effects fade from 0 to 1, volume continues ramping from 0.4 to 1.0
         effects_fade_end = min(SAMPLE_TOTAL, voice_delay_samps)
         effects_fade_length = effects_fade_end - pure_tone_samps
         if effects_fade_length > 0:
             base_effects_env[pure_tone_samps:effects_fade_end] = np.linspace(0, 1, effects_fade_length)
+            pure_tone_volume_env[pure_tone_samps:effects_fade_end] = np.linspace(0.4, 1.0, effects_fade_length)
 
     # Create a small, natural-sounding detune for each voice:
     # 1. Initialize a reproducible random number generator with the given seed.
@@ -442,6 +448,9 @@ def generate_app(
     L[:fi] *= fade_up
     R[:fi] *= fade_up
 
+    # Apply pure tone volume envelope (ramps from 20% to 70% during first 35% of voice delay)
+    L *= pure_tone_volume_env
+    R *= pure_tone_volume_env
 
     # Let the recursion decide when to end. We measure how fast the control‑rate
     # envelope is changing; when it’s essentially still for a while, we "detect 
