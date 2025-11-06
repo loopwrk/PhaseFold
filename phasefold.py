@@ -521,7 +521,7 @@ def generate_app(
     # headroom normalize
     peak = max(np.max(np.abs(L)), np.max(np.abs(R))) + 1e-12
     gain = (10 ** (-1.5 / 20)) / peak
-    return L * gain, R * gain, sr, recursion_ctrl_progress, d_ctrl_smooth
+    return L * gain, R * gain, sr
 
 
 # ----------------------- Lissajous widget -----------------------
@@ -976,9 +976,6 @@ class audioApp(tk.Tk):
         self._viz_last_pos = 0  # Last known position for smooth easing
         self._effective_len = 0        # actual number of samples in self.audio
         self._shutting_down = False
-        # Control-rate activity (for ΔΦ meter)
-        self.ctrl_progress = None   # control-rate 0..1 timeline (Nc,)
-        self.ctrl_activity = None   # smoothed |d ctrl| at control rate (Nc,)
 
         self.base_f0_note_label = None  # will hold the note name label
 
@@ -1502,27 +1499,6 @@ class audioApp(tk.Tk):
         self._refresh_time_slider_limit()
         r += 1
 
-        # Tiny ΔΦ activity meter (smoothed |d ctrl|) just below the time slider
-        tk.Label(
-            ctrl,
-            text="ΔΦ",
-            bg=self._LEFT_BG,
-            font=self._label_font,
-            fg="#000000",
-            width=3,
-            anchor="w",
-        ).grid(row=r, column=0, sticky="w")
-        self.activity_canvas = tk.Canvas(
-            ctrl,
-            height=22,
-            bg="#F0F3F7",
-            highlightthickness=1,
-            highlightbackground=self._SEP_BG,
-        )
-        self.activity_canvas.grid(row=r, column=1, columnspan=2, sticky="ew", padx=6)
-        self.activity_canvas.bind("<Configure>", lambda e: self._draw_activity_meter())
-        r += 1
-
         # Value display below the slider
         value_display_frame = tk.Frame(ctrl, bg=self._LEFT_BG)
         value_display_frame.grid(row=r, column=0, columnspan=3, sticky="w")
@@ -1921,44 +1897,6 @@ class audioApp(tk.Tk):
         self.desc_text.insert("1.0", f"{param_name}:\n{description}")
         self.desc_text.config(state="disabled")
 
-    def _draw_activity_meter(self):
-        """Draw the ΔΦ (smoothed |d ctrl|) sparkline and current time marker."""
-        c = getattr(self, "activity_canvas", None)
-        if c is None:
-            return
-        try:
-            w = max(10, int(c.winfo_width()))
-            h = max(6, int(c.winfo_height()))
-        except Exception:
-            return
-        c.delete("all")
-        if self.ctrl_activity is None or self.ctrl_progress is None or self._effective_len <= 0:
-            return
-        act = np.asarray(self.ctrl_activity, dtype=float)
-        if act.size < 2:
-            return
-        if np.all(np.isfinite(act)):
-            vmax = float(np.percentile(act, 95))
-        else:
-            vmax = 0.0
-        if not np.isfinite(vmax) or vmax <= 1e-9:
-            vmax = 1.0
-        y01 = np.clip(act / vmax, 0.0, 1.0)
-        idx = np.linspace(0, y01.size - 1, w)
-        y_rs = np.interp(idx, np.arange(y01.size), y01)
-        pad = 2
-        ys = (h - pad) - (h - 2 * pad) * y_rs
-        xs = np.arange(w)
-        coords = np.column_stack((xs, ys)).ravel().tolist()
-        c.create_line(*coords, fill="#5B6DFF", width=1)
-        try:
-            t = float(self.var_time.get())
-        except Exception:
-            t = 0.0
-        total_t = max(1e-9, self._effective_len / float(self.sr))
-        x_mark = int(np.clip((t / total_t) * (w - 1), 0, w - 1))
-        c.create_line(x_mark, 0, x_mark, h, fill="#D02090", width=1)
-
     def _refresh_time_slider_limit(self):
         slider = getattr(self, "s_time", None)
         if slider is None:
@@ -2011,7 +1949,7 @@ class audioApp(tk.Tk):
         self.update_idletasks()
 
         # Generate fresh audio with the clamped duration
-        L, R, sr, ctrl_prog, dphi = generate_app(
+        L, R, sr = generate_app(
             dur=dur,
             sr=self.var_sr.get(),
             base_f0=self.var_base.get(),
@@ -2043,18 +1981,10 @@ class audioApp(tk.Tk):
         self.audio = np.stack([L, R], axis=1)
         self._effective_len = len(self.audio)
 
-        # Store ΔΦ series for meter
-        self.ctrl_progress = np.asarray(ctrl_prog, dtype=float)
-        self.ctrl_activity = np.asarray(dphi, dtype=float)
-
         # Reset scrubber and UI
         self.var_time.set(0.0)
         try:
             self._refresh_time_slider_limit()
-        except Exception:
-            pass
-        try:
-            self._draw_activity_meter()
         except Exception:
             pass
 
@@ -2395,10 +2325,6 @@ class audioApp(tk.Tk):
                 self._sd_position = min(new_pos, len(self.audio) if self.audio is not None else 0)
 
         self.on_show_frame()
-        try:
-            self._draw_activity_meter()
-        except Exception:
-            pass
 
     def on_show_frame(self):
         if (
@@ -2523,10 +2449,6 @@ class audioApp(tk.Tk):
         self._anim_frame_counter += 1
         if self._anim_frame_counter % 3 == 0:
             self.var_time.set(self._viz_position / self.sr)
-            try:
-                self._draw_activity_meter()
-            except Exception:
-                pass
 
         # Advance by fixed hop (samples per frame)
         # hop = sample_rate / FPS

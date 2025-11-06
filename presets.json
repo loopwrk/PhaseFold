@@ -44,6 +44,21 @@
     "comb": 0.5,
     "curve": 1.2000000000000002
   },
+  "Anicca": {
+    "dur": 107.0,
+    "base": 132.0,
+    "voices": 5,
+    "layers": 3,
+    "vdelay": 5.0,
+    "breath": 0.005,
+    "width": 0.2,
+    "bdel": 113.1428571429,
+    "bamt": 0.6,
+    "even": 0.0,
+    "odd": 0.0,
+    "comb": 0.03,
+    "curve": 2.6
+  },
   "Wolfish Limma": {
     "dur": 120.0,
     "base": 196.0,
@@ -103,21 +118,6 @@
     "odd": 0.0,
     "comb": 0.04,
     "curve": 1.6
-  },
-  "Anicca": {
-    "dur": 107.0,
-    "base": 132.0,
-    "voices": 5,
-    "layers": 3,
-    "vdelay": 5.0,
-    "breath": 0.005,
-    "width": 0.2,
-    "bdel": 113.1428571429,
-    "bamt": 0.6,
-    "even": 0.0,
-    "odd": 0.0,
-    "comb": 0.03,
-    "curve": 2.6
   },
   "Septimal Tritone": {
     "dur": 282.0,
@@ -349,7 +349,7 @@
     "base": 165.0,
     "voices": 6,
     "layers": 5,
-    "vdelay": 5,
+    "vdelay": 16,
     "breath": 0.065,
     "width": 0.75,
     "bdel": 47.3,
@@ -364,7 +364,7 @@
     "base": 165.0,
     "voices": 2,
     "layers": 2,
-    "vdelay": 5,
+    "vdelay": 7,
     "breath": 0.06,
     "width": 0.72,
     "bdel": 1.7,
@@ -405,11 +405,11 @@
     "curve": 1.65
   },
   "Orpheus' Harp": {
-    "dur": 90.0,
+    "dur": 102.0,
     "base": 220.0,
     "voices": 4,
     "layers": 2,
-    "vdelay": 7,
+    "vdelay": 13,
     "breath": 0.0,
     "width": 0.5,
     "bdel": 73.33,
