@@ -227,6 +227,16 @@ def generate_app(
                 0, 1, fade_length
             )
 
+    # Base effects emergence envelope: fade in complexity during voice delay period
+    # This creates a true "one → many" experience by starting with a pure base tone
+    # and gradually introducing binaural split, harmonics, comb, stereo, breath, and drift
+    base_effects_env = np.ones(SAMPLE_TOTAL)
+    if voice_delay_samps > 0:
+        # During delay: effects fade from 0 to 1
+        fade_end = min(SAMPLE_TOTAL, voice_delay_samps)
+        if fade_end > 0:
+            base_effects_env[:fade_end] = np.linspace(0, 1, fade_end)
+
     # Create a small, natural-sounding detune for each voice:
     # 1. Initialize a reproducible random number generator with the given seed.
     # 2. Generate random detune offsets in cents (normally distributed around 0, ±12 cents typical range).
@@ -277,7 +287,7 @@ def generate_app(
 
     # Audio‑rate marked_state (for tiny pitch drift) derived from control‑rate state
     marked_state = np.interp(progress_01, recursion_ctrl_progress, marked_state_c)
-    freq_dev = 0.01 * (marked_state - np.mean(marked_state))
+    freq_dev = 0.01 * (marked_state - np.mean(marked_state)) * base_effects_env
     amp_env = 0.6 + 0.4 * activity_env
 
     base_f = base_f0 * (1.0 + freq_dev)
@@ -367,7 +377,7 @@ def generate_app(
     odd_term = 4.0 * x * x * x - 3.0 * x
     mix = np.tanh(
         mix
-        + (convergence_gain_01**overtone_power)
+        + (convergence_gain_01**overtone_power) * base_effects_env
         * (harmonic_even * even_term + harmonic_odd * odd_term)
     )
 
@@ -392,22 +402,25 @@ def generate_app(
 
         aenv = convergence_gain_01**overtone_power
         mix = np.tanh(
-            (1.0 - comb_amount * 3.0 * aenv) * mix + (comb_amount * aenv) * acc
+            (1.0 - comb_amount * 3.0 * aenv * base_effects_env) * mix + (comb_amount * aenv * base_effects_env) * acc
         )
 
     # Simple, fast stereo + binaural collapse
     binaural_env = convergence_gain_01**1.4
-    delta_t = binaural_delta_hz0 * binaural_env
+    delta_t = binaural_delta_hz0 * binaural_env * base_effects_env
     phase_b_L = 2 * np.pi * np.cumsum(base_f0 - 0.5 * delta_t) / sr
     phase_b_R = 2 * np.pi * np.cumsum(base_f0 + 0.5 * delta_t) / sr
     b_L = np.sin(phase_b_L)
     b_R = np.sin(phase_b_R)
 
     # Increased breath effect in stereo field: was 0.75/0.25, now 0.6/0.4 for more audible pulsing
-    L_base = mix * (0.6 + 0.4 * breath) + binaural_amount * binaural_env * b_L
-    R_base = mix * (0.6 + 0.4 * (1 - breath)) + binaural_amount * binaural_env * b_R
+    # Blend from symmetric (0.5) to asymmetric breath modulation during voice delay
+    breath_L = 0.5 + base_effects_env * (0.1 + 0.4 * breath - 0.5)
+    breath_R = 0.5 + base_effects_env * (0.1 + 0.4 * (1 - breath) - 0.5)
+    L_base = mix * breath_L + binaural_amount * binaural_env * b_L
+    R_base = mix * breath_R + binaural_amount * binaural_env * b_R
 
-    st_env = 0.5 * stereo_width * convergence_gain_01
+    st_env = 0.5 * stereo_width * convergence_gain_01 * base_effects_env
     delay_samps = 48
     delayed = np.empty_like(mix)
     delayed[:delay_samps] = 0.0
@@ -805,6 +818,8 @@ class WaveformPane(ttk.Frame):
 class audioApp(tk.Tk):
     # Path to user presets file - same directory as this script
     USER_PRESETS_FILE = Path(__file__).parent / "presets.json"
+    # Path to parameter labels file
+    PARAM_LABELS_FILE = Path(__file__).parent / "parameterlabels.json"
 
     # Built-in Presets
     PRESETS = {
@@ -861,22 +876,8 @@ class audioApp(tk.Tk):
     
     # ----------------------- GUI -----------------------
 
-    # Parameter descriptions
-    PARAM_DESCRIPTIONS = {
-        "Duration (s)": "Length of the composition in seconds. Longer durations allow for more gradual evolution toward the base tone.",
-        "Base f0 (Hz)": "Fundamental frequency - the target pitch for the final tone. Lower values create deeper drones; higher values are brighter.",
-        "Voices": "Number of detuned oscillators. More voices create richer initial textures that collapse toward unity.",
-        "Layers": "FM/AM recursion depth. More layers create more complex timbral evolution through recursive modulation.",
-        "Voice delay (s)": 'Duration of initial unity phase. The base tone plays alone before voices emerge, emphasizing the "one → many → one" philosophy.',
-        "Breath rate (Hz)": "Frequency of slow amplitude oscillation. Lower values (0.01-0.05 Hz) create slower, meditative breathing patterns. Higher values (0.1-0.2 Hz) create faster pulsing.",
-        "Stereo width": "Spatial decorrelation amount. Creates stereo separation that collapses to mono as the piece progresses toward the base tone.",
-        "Binaural Δ (Hz)": "Interaural frequency difference in Hz. Creates binaural beats that fade out as the event collapses. Tip: set Δ ≈ 0.343 × Base f0 to place left/right a tritone apart (ratio ≈ √2).",
-        "Binaural amt": "Strength of the binaural beat layer. Higher values make the beat effect more prominent in the early stages.",
-        "Even harmonic": "Harmonic enrichment using 2nd-order Chebyshev polynomial (T2). Adds even harmonics to the timbre.",
-        "Odd harmonic": "Harmonic enrichment using 3rd-order Chebyshev polynomial (T3). Adds odd harmonics to the timbre.",
-        "Comb amount": "Modal resonance strength via feedforward comb filtering. Emphasizes harmonic partials, creating bell-like resonances.",
-        "Collapse curve": "Exponential shape of the return envelope. Higher values create faster final collapse; lower values spread the transition more evenly. Values greater than 1.0 creates a non-linear decay that can feel more musically natural than linear fading, but it also means most of the dramatic change happens in the latter portion of the piece, which could make the beginning feel static if not balanced with other evolving elements.",
-    }
+    # Parameter descriptions (loaded from parameterlabels.json)
+    PARAM_DESCRIPTIONS = {}
 
     # Built-in preset names (automatically derived from PRESETS keys)
     # Used to distinguish built-in presets from user-created ones
@@ -968,6 +969,9 @@ class audioApp(tk.Tk):
 
         # Load user presets from file
         self._load_user_presets()
+
+        # Load parameter descriptions from file
+        self._load_param_descriptions()
 
         self._build_ui()
 
@@ -1201,7 +1205,7 @@ class audioApp(tk.Tk):
         label.bind("<Button-1>", lambda e: self.show_description("Base f0 (Hz)"))
 
         def round_base_f0(value):
-            rounded = round(float(value) / 0.5) * 0.5
+            rounded = round(float(value) / 0.1) * 0.1
             self.var_base.set(rounded)
             self.update_base_f0_note()
 
@@ -1269,7 +1273,7 @@ class audioApp(tk.Tk):
             try:
                 new_val = float(value_entry.get())
                 new_val = max(20, min(220, new_val))
-                new_val = round(new_val / 0.5) * 0.5
+                new_val = round(new_val / 0.1) * 0.1
                 self.var_base.set(new_val)
                 self.update_base_f0_note()
             except ValueError:
@@ -1625,6 +1629,33 @@ class audioApp(tk.Tk):
                 )
             except Exception:
                 print(f"Warning: Could not load user presets: {e}")
+
+    def _load_param_descriptions(self):
+        """Load parameter descriptions from parameterlabels.json file."""
+        if not self.PARAM_LABELS_FILE.exists():
+            print(f"Warning: Parameter labels file not found: {self.PARAM_LABELS_FILE}")
+            return
+
+        try:
+            with open(self.PARAM_LABELS_FILE, "r") as f:
+                descriptions = json.load(f)
+
+            # Validate that the file contains a dictionary
+            if not isinstance(descriptions, dict):
+                raise ValueError("Parameter labels file must contain a JSON object")
+
+            # Update the class-level PARAM_DESCRIPTIONS
+            self.PARAM_DESCRIPTIONS.update(descriptions)
+
+        except Exception as e:
+            # Show warning for file-level errors
+            try:
+                messagebox.showwarning(
+                    "Parameter Labels Load Error",
+                    f"Could not load parameter descriptions:\n{e}"
+                )
+            except Exception:
+                print(f"Warning: Could not load parameter descriptions: {e}")
 
     def _save_user_presets(self):
         """Save all non-built-in presets to JSON file."""

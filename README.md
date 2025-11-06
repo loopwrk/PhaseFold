@@ -279,6 +279,8 @@ It can be used in the app to visualise:
   [Beyond the Audible: Éliane Radigue's OCCAM works and Inter/Listening](https://ualresearchonline.arts.ac.uk/id/eprint/21800/6/Beyond%20the%20Audible%20%20%20liane%20Radigue%20s%20OCCAM%20works%20and%20Inter%20Listening.cleaned.pdf)
 - Pauline Oliveros -
   [The difference between hearing and listening](https://www.youtube.com/watch?v=_QHfOuRrJB8)
+- Laurie Spiegel - Magic Mouse: Wiki(https://en.wikipedia.org/wiki/Music_Mouse)
+  | [Web-based emulation](https://teropa.info/musicmouse/)
 - Ryoji Ikeda -
   - [Cyclo](https://www.ryojiikeda.com/project/cyclo/)
   - [A](https://www.ryojiikeda.com/project/A/)
@@ -290,6 +292,8 @@ It can be used in the app to visualise:
   [Parity Violation experiments](https://www.nishina-mf.or.jp/wp/wp-content/uploads/2020/03/OCR_nkz-19.pdf)
 - David Bohm -
   [Implicate Order & Holomovement](https://en.wikipedia.org/wiki/Implicate_and_explicate_order)
+- Slime mould 🦠
+  [yes, seriously](https://pmc.ncbi.nlm.nih.gov/articles/PMC7935053/)
 
 Playlist of relevant artists: 🎧
 [Link](https://tidal.com/playlist/97e3d388-9188-47ec-96cc-f8a42ecc6fae)

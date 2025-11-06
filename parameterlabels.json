@@ -1,0 +1,15 @@
+{
+  "Duration (s)": "Length of the composition in seconds. Longer durations allow for more gradual evolution toward the base tone.",
+  "Base f0 (Hz)": "Anchor frequency of the piece. Voices emerge from, diverge around, and finally resolve back into this tone. Lower = deeper drones; higher = brighter centres.",
+  "Layers": "Number of depth layers. More layers create richer evolving tones that shift and unfold over time. Each layer adds gentle FM and AM modulation that recursively modulate subsequent layers. Higher values = deeper FM/AM recursion (more motion early on, stronger resolution back to the base tone at the end). Fewer layers = fewer modulations = a simpler, more direct sound-field, you mostly hear the pure base tone and gentle movement.",
+  "Voices": "Number of detuned oscillators. More voices create richer initial textures that collapse toward unity.",
+  "Voice delay (s)": "Duration of initial base tone playing on its own. The base tone plays alone before voices emerge.",
+  "Breath rate (Hz)": "Frequency of slow amplitude oscillation. Lower values (0.01-0.05 Hz) create slower, meditative breathing patterns. Higher values (0.1-0.2 Hz) create faster pulsing.",
+  "Stereo width": "Spatial decorrelation amount. Creates stereo separation that collapses to mono as the piece progresses toward the base tone.",
+  "Binaural Δ (Hz)": "Interaural frequency difference in Hz. Creates binaural beats that fade out as the event collapses. Tip: set Δ ≈ 0.343 × Base f0 to place left/right a tritone apart (ratio ≈ √2).",
+  "Binaural amt": "Strength of the binaural beat layer. Higher values make the beat effect more prominent in the early stages.",
+  "Even harmonic": "Harmonic enrichment using 2nd-order Chebyshev polynomial (T2). Adds even harmonics to the timbre.",
+  "Odd harmonic": "Harmonic enrichment using 3rd-order Chebyshev polynomial (T3). Adds odd harmonics to the timbre.",
+  "Comb amount": "Modal resonance strength via feedforward comb filtering. Emphasizes harmonic partials, creating bell-like resonances.",
+  "Collapse curve": "Exponential shape of the return envelope. Higher values create faster final collapse; lower values spread the transition more evenly. Values greater than 1.0 creates a non-linear decay that can feel more musically natural than linear fading, but it also means most of the dramatic change happens in the latter portion of the piece, which could make the beginning feel static if not balanced with other evolving elements."
+}
