@@ -462,7 +462,7 @@ def generate_app(
 
     # Threshold: when smoothed change stays below eps for quiet_secs, we stop soon after
     eps = 1e-3          # small envelope change per second considered "still"
-    quiet_secs = 2.0    # require this long of stillness at control-rate
+    quiet_secs = 21.0    # require this long of stillness at control-rate
     quiet_steps = max(1, int(round(quiet_secs * control_hz)))
 
     # Find the last index where activity was above threshold; stop after a quiet window

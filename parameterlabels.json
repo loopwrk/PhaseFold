@@ -10,6 +10,6 @@
   "Binaural mix": "Strength of the binaural beat layer. Higher values mixes the beat in more prominently in the early stages.",
   "Even harmonic": "Harmonic enrichment using 2nd-order Chebyshev polynomial (T2). Adds even harmonics to the timbre.",
   "Odd harmonic": "Harmonic enrichment using 3rd-order Chebyshev polynomial (T3). Adds odd harmonics to the timbre.",
-  "Comb amount": "Modal resonance strength via feedforward comb filtering. Emphasizes harmonic partials, creating bell-like resonances.",
+  "Comb amount": "Modal resonance strength via feedforward comb filtering. The comb filter creates resonances by: A. Taking the current signal (whatever's in mix) B. Creating 3 delayed copies based on base_f0C. Mixing those delayed copies back inEmphasizes harmonic partials, creating bell-like resonances.",
   "Collapse curve": "Exponential shape of the return envelope. Higher values create faster final collapse; lower values spread the transition more evenly. Values greater than 1.0 creates a non-linear decay that can feel more musically natural than linear fading, but it also means most of the dramatic change happens in the latter portion of the piece, which could make the beginning feel static if not balanced with other evolving elements."
 }
