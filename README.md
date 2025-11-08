@@ -172,7 +172,7 @@ a time, then press **Generate** again — it makes it easier to hear what change
 - **Binaural Δ (Hz)** — Difference between left/right for binaural beating. 3–10
   Hz = classic binaural effect. This value will slowly collapse over time with
   the convergence envelope.
-- **Binaural amount** — How much of the binaural bed is mixed under the main
+- **Binaural mix** — How much of the binaural bed is mixed under the main
   signal. If things feel too wobbly, lower this.
 - **Even / Odd harmonics** — Add harmonic color on top of the main tone. Even =
   round/sweet. Odd = nasal/brighter. These also decay with time so the piece can

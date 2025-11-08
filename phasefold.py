@@ -1041,7 +1041,7 @@ class audioApp(tk.Tk):
         self.var_layers = tk.IntVar(value=5)
         self.var_vdelay = tk.DoubleVar(value=6.0)
         self.var_breath = tk.DoubleVar(value=0.012)
-        self.var_width = tk.DoubleVar(value=0.65)
+        self.var_width = tk.DoubleVar(value=0.04)
         self.var_bdel = tk.DoubleVar(value=11.0)
         self.var_bamt = tk.DoubleVar(value=0.28)
         self.var_even = tk.DoubleVar(value=0.12)
@@ -1327,9 +1327,9 @@ class audioApp(tk.Tk):
         # Spatial parameters
         spatial_frame = tk.Frame(param_notebook, bg=self._LEFT_BG)
         spatial_frame.columnconfigure(1, weight=1)
-        add_slider(spatial_frame, 0, "Stereo width", self.var_width, 0, 1, 0.01)
+        add_slider(spatial_frame, 0, "Stereo width", self.var_width, 0, 0.08, 0.01)
         add_slider(spatial_frame, 1, "Binaural balance (Hz)", self.var_bdel, 0, 120, 0.1)
-        add_slider(spatial_frame, 2, "Binaural amount", self.var_bamt, 0, 0.6, 0.01)
+        add_slider(spatial_frame, 2, "Binaural mix", self.var_bamt, 0, 0.6, 0.01)
         param_notebook.add(spatial_frame, text="Spatial")
 
         # Timbral parameters
