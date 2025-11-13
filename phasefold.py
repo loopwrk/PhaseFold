@@ -42,36 +42,37 @@ matplotlib.rcParams["agg.path.chunksize"] = 2000
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
+try:
+    import sounddevice as sd  # primary, low-latency
+except Exception:
+    sd = None
+
 # --- Application constants ---
 AUDIO_SR = 44100
 CONTROL_HZ = 60.0
 LISSAJOUS_POINTS = 1100 # ~50 ms window (≈1100 pts at 44.1 kHz, about half of 2205)
 WAVEFORM_PLOT_POINTS = 1000
 VIZ_WINDOW_SECONDS = 0.05  # 50 ms visualization window
-
-try:
-    import sounddevice as sd  # primary, low-latency
-except Exception:
-    sd = None
     
 # ----------------------- Utility functions -----------------------
 
-def write_wav_stereo(path, L, R, sr):
+def write_wav_stereo(path, L, R, sample_rate):
     path = Path(path)
-    xL = np.clip(L, -1.0, 1.0)
-    xR = np.clip(R, -1.0, 1.0)
-    pcm = (np.stack([xL, xR], axis=1) * 32767.0).astype(np.int16)
-    with wave.open(str(path), "wb") as wf:
-        wf.setnchannels(2)
-        wf.setsampwidth(2)
-        wf.setframerate(sr)
-        wf.writeframes(pcm.tobytes())
+    left_channel = np.clip(L, -1.0, 1.0)
+    right_channel = np.clip(R, -1.0, 1.0)
+    INT16_MAX = 32767.0
+    output_wav = (np.stack([left_channel, right_channel], axis=1) * INT16_MAX).astype(np.int16)
+    with wave.open(str(path), "wb") as wav:
+        wav.setnchannels(2)
+        wav.setsampwidth(2)
+        wav.setframerate(sample_rate)
+        wav.writeframes(output_wav.tobytes())
     return path
 
 # ----------------------- DSP helpers -----------------------
 
 def freq_to_note_name(freq):
-    """Convert frequency in Hz to note name (e.g., 'A4', 'C#3')."""
+    # Convert frequency in Hz to note name (e.g., 'A4', 'C#3').
     if freq <= 0:
         return "---"
 
@@ -80,31 +81,25 @@ def freq_to_note_name(freq):
     note_names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 
     # Calculate semitones from A4
-    semitones_from_A4 = 12 * np.log2(freq / A4)
+    semitones_from_A4 = len(note_names) * np.log2(freq / A4)
     # Round to nearest semitone
     semitone_index = int(round(semitones_from_A4))
-
-    # A4 is note index 9 (A) in octave 4
-    # Calculate which note and octave
-    # A4 = 0 semitones, A#4 = 1, B4 = 2, C5 = 3, etc.
-    # A3 = -12, A2 = -24, etc.
     note_index = (9 + semitone_index) % 12  # 9 = A in the note_names list
     octave = 4 + (9 + semitone_index) // 12
 
     return f"{note_names[note_index]}{octave}"
 
-
-def lowpass(sig, cutoff_hz, sr, state=0.0):
+def smooth_envelope(input_signal, cutoff_hz, sample_rate, state=0.0):
     """
     One-pole low-pass filter: y[n] = y[n-1] + α (x[n] - y[n-1])
-    where α = 1 - exp(-2π fc / sr)
+    where α = 1 - exp(-2π fc / sample_rate)
 
     This exponential form is numerically stable and avoids division by zero.
 
     Args:
-        sig: Input signal array
+        input_signal: Input signal array
         cutoff_hz: Cutoff frequency in Hz
-        sr: Sample rate in Hz
+        sample_rate: Sample rate in Hz
         state: Previous output sample for continuity across chunks (default: 0.0)
 
     Returns:
@@ -112,26 +107,27 @@ def lowpass(sig, cutoff_hz, sr, state=0.0):
 
     Edge cases:
         - cutoff_hz <= 0: bypass (return copy of input)
-        - cutoff_hz >= sr/2: bypass (already at Nyquist)
+        - cutoff_hz >= sample_rate/2: bypass (already at Nyquist)
         - non-finite cutoff_hz: bypass
     """
-    sig = np.asarray(sig)
-    if sig.size == 0:
-        return sig
+    input_signal = np.asarray(input_signal)
+    if input_signal.size == 0:
+        return input_signal
 
-    # Bypass filter if cutoff is invalid or out of usable range
-    if not np.isfinite(cutoff_hz) or cutoff_hz <= 0 or cutoff_hz >= 0.5 * sr:
-        return sig.copy()
+    # Bypass filter if cutoff hz is invalid or out of usable range
+    # 0.5 × sample_rate is the Nyquist limit — the fastest change possible without breaking.
+    if not np.isfinite(cutoff_hz) or cutoff_hz <= 0 or cutoff_hz >= 0.5 * sample_rate:
+        return input_signal.copy()
 
     # Exponential coefficient form: stable, no division by tiny numbers
-    alpha = 1.0 - np.exp(-2.0 * np.pi * cutoff_hz / sr)
+    alpha = 1.0 - np.exp(-2.0 * np.pi * cutoff_hz / sample_rate)
 
-    y = np.empty_like(sig)
+    smoothed = np.empty_like(input_signal)
     acc = float(state)
-    for i in range(sig.shape[0]):
-        acc += alpha * (sig[i] - acc)
-        y[i] = acc
-    return y
+    for i in range(input_signal.shape[0]):
+        acc += alpha * (input_signal[i] - acc)
+        smoothed[i] = acc
+    return smoothed
 
 # Simplex‑safe stabilizer for state vector [m,progress_01]
 _def_eps = 1e-12
@@ -183,7 +179,7 @@ def apply_Phi(v, lam, theta_step, eps):
 
 def generate_app(
     dur=20.0,
-    sr=AUDIO_SR,
+    sample_rate=AUDIO_SR,
     base_f0=110.0,
     voices=6,
     layers=4,
@@ -202,8 +198,8 @@ def generate_app(
     breath_rate=0.045,
 ):
     # Make time axis
-    SAMPLE_TOTAL = int(sr * dur)
-    sample_times_s = np.arange(SAMPLE_TOTAL) / sr
+    SAMPLE_TOTAL = int(sample_rate * dur)
+    sample_times_s = np.arange(SAMPLE_TOTAL) / sample_rate
 
     progress_01 = np.linspace(0, 1, SAMPLE_TOTAL)
     
@@ -213,8 +209,8 @@ def generate_app(
     convergence_gain_01 = 1.0 - progress_01**collapse_curve
 
     # Voice emergence envelope: delay voices, fade them in over ~1-2s
-    voice_delay_samps = int(voice_delay * sr)
-    voice_fade_samps = int(1.5 * sr)  # 1.5s fade-in
+    voice_delay_samps = int(voice_delay * sample_rate)
+    voice_fade_samps = int(1.5 * sample_rate)  # 1.5s fade-in
     voice_emerge_env = np.ones(SAMPLE_TOTAL)
     if voice_delay_samps > 0:
         # Before delay: voices silent
@@ -292,8 +288,8 @@ def generate_app(
     marked_state_c = v_state_c[0]
     mclip_c = np.clip(marked_state_c, -8.0, 8.0)
     activity_env_c = 0.5 * (1.0 + np.tanh(0.5 * 3.0 * mclip_c))
-    # Filter slow envelope at control‑rate (cutoff 0.5 Hz, sr = control_hz)
-    activity_env_c = lowpass(activity_env_c, cutoff_hz=0.5, sr=control_hz)
+    # Filter slow envelope at control‑rate (cutoff 0.5 Hz, sample_rate = control_hz)
+    activity_env_c = smooth_envelope(activity_env_c, cutoff_hz=0.5, sample_rate=control_hz)
     # Upsample back to audio‑rate for application in the signal domain
     activity_env = np.interp(progress_01, recursion_ctrl_progress, activity_env_c)
 
@@ -320,7 +316,7 @@ def generate_app(
     layer_ctrl_c = []
     for ell in range(layers):
         fc_ell = base_fc / (1.0 + LAYER_CTRL_SLOWDOWN * ell)
-        env_c = lowpass(activity_env_c, cutoff_hz=fc_ell, sr=control_hz)
+        env_c = smooth_envelope(activity_env_c, cutoff_hz=fc_ell, sample_rate=control_hz)
         layer_ctrl_c.append(env_c)
     # Upsample to audio-rate
     layer_ctrl = [np.interp(progress_01, recursion_ctrl_progress, e) for e in layer_ctrl_c]
@@ -345,11 +341,11 @@ def generate_app(
 
         # Apply small depth detune to the per-voice base frequency
         phase_layer = (
-            2 * np.pi * np.cumsum(detune_factor * (base_f[None, :] * layer_detune[ell]), axis=1) / sr
+            2 * np.pi * np.cumsum(detune_factor * (base_f[None, :] * layer_detune[ell]), axis=1) / sample_rate
         ) + phase0[:, None]
 
         # FM modulation from this layer’s control envelope
-        phase_mod_l = 2 * np.pi * np.cumsum(ctrl_l * fm_l) / sr
+        phase_mod_l = 2 * np.pi * np.cumsum(ctrl_l * fm_l) / sample_rate
 
         # Compose phases (include shared slow drift)
         phase_l = phase_layer + drift_phase[None, :] + phase_mod_l[None, :]
@@ -371,7 +367,7 @@ def generate_app(
     mixed_signal = np.sum(w * stacked, axis=0)
 
     # Bbase tone anchors unity, voices fade in
-    base_phase = 2 * np.pi * base_f0 * np.arange(1, SAMPLE_TOTAL + 1) / sr
+    base_phase = 2 * np.pi * base_f0 * np.arange(1, SAMPLE_TOTAL + 1) / sample_rate
     base_tone_core = np.sin(base_phase) * amp_env * (0.5 + 0.5 * breath)
     base_gain = 1.0 + 0.15 * (1.0 - voice_emerge_env) - 0.10 * (
         voice_emerge_env * convergence_gain_01
@@ -394,9 +390,9 @@ def generate_app(
     )
 
     if comb_amount > 0:
-        d1 = int(sr / base_f0)
-        d2 = int(sr / (base_f0 * 1.5))
-        d3 = int(sr / (base_f0 * 2.0))
+        d1 = int(sample_rate / base_f0)
+        d2 = int(sample_rate / (base_f0 * 1.5))
+        d3 = int(sample_rate / (base_f0 * 2.0))
         acc = np.zeros_like(mix)
         if d1 > 0:
             acc[:-d1] += mix[d1:]
@@ -407,7 +403,7 @@ def generate_app(
 
         # Apply short fade-in to acc to prevent clicks from abrupt onset
         # 20ms is short enough to be inaudible but long enough to smooth discontinuities
-        fade_len = min(int(0.02 * sr), len(acc))  # 20ms fade-in
+        fade_len = min(int(0.02 * sample_rate), len(acc))  # 20ms fade-in
         if fade_len > 1:
             fade_in = np.linspace(0, 1, fade_len)
             acc[:fade_len] *= fade_in
@@ -420,8 +416,8 @@ def generate_app(
     # Simple, fast stereo + binaural collapse
     binaural_env = convergence_gain_01**1.4
     delta_t = binaural_delta_hz0 * binaural_env * base_effects_env
-    phase_b_L = 2 * np.pi * np.cumsum(base_f0 - 0.5 * delta_t) / sr
-    phase_b_R = 2 * np.pi * np.cumsum(base_f0 + 0.5 * delta_t) / sr
+    phase_b_L = 2 * np.pi * np.cumsum(base_f0 - 0.5 * delta_t) / sample_rate
+    phase_b_R = 2 * np.pi * np.cumsum(base_f0 + 0.5 * delta_t) / sample_rate
     b_L = np.sin(phase_b_L)
     b_R = np.sin(phase_b_R)
 
@@ -443,7 +439,7 @@ def generate_app(
 
     # Apply fade in at start
     fade_in_s = 0.5
-    fi = int(fade_in_s * sr)
+    fi = int(fade_in_s * sample_rate)
     fade_up = np.linspace(0, 1, fi)
     L[:fi] *= fade_up
     R[:fi] *= fade_up
@@ -458,7 +454,7 @@ def generate_app(
 
     # Measure control‑rate activity (|d/dt| of activity_env_c), smoothed at control_hz
     d_ctrl = np.abs(np.diff(activity_env_c, prepend=activity_env_c[0])) * control_hz
-    d_ctrl_smooth = lowpass(d_ctrl, cutoff_hz=0.5, sr=control_hz)
+    d_ctrl_smooth = smooth_envelope(d_ctrl, cutoff_hz=0.5, sample_rate=control_hz)
 
     # Threshold: when smoothed change stays below eps for quiet_secs, we stop soon after
     eps = 1e-3          # small envelope change per second considered "still"
@@ -486,7 +482,7 @@ def generate_app(
 
     # Apply a short equal‑power fade to silence so we never click
     fade_out_duration = 1.0  # seconds; short, natural
-    fade_samps = max(1, min(int(round(fade_out_duration * sr)), len(L)))
+    fade_samps = max(1, min(int(round(fade_out_duration * sample_rate)), len(L)))
     if fade_samps > 0:
         f = np.cos(0.5 * np.pi * np.linspace(0.0, 1.0, fade_samps))
         L[-fade_samps:] *= f
@@ -497,7 +493,7 @@ def generate_app(
     thr = 5e-4  # about −66 dBFS
     nz = np.where(mono_abs > thr)[0]
     if nz.size > 0:
-        cut = min(len(L), int(nz[-1]) + 1 + int(VIZ_WINDOW_SECONDS * sr))
+        cut = min(len(L), int(nz[-1]) + 1 + int(VIZ_WINDOW_SECONDS * sample_rate))
         L = L[:cut]
         R = R[:cut]
 
@@ -513,7 +509,7 @@ def generate_app(
         L += st_env * delayed
         R -= st_env * delayed
         # Apply a graceful 1 s fade at the very end
-        fade_samps = max(1, min(int(round(1.0 * sr)), len(L)))
+        fade_samps = max(1, min(int(round(1.0 * sample_rate)), len(L)))
         f = np.cos(0.5 * np.pi * np.linspace(0.0, 1.0, fade_samps))
         L[-fade_samps:] *= f
         R[-fade_samps:] *= f
@@ -521,7 +517,7 @@ def generate_app(
     # headroom normalize
     peak = max(np.max(np.abs(L)), np.max(np.abs(R))) + 1e-12
     gain = (10 ** (-1.5 / 20)) / peak
-    return L * gain, R * gain, sr
+    return L * gain, R * gain, sample_rate
 
 
 # ----------------------- Lissajous widget -----------------------
@@ -954,7 +950,7 @@ class audioApp(tk.Tk):
         self.geometry("980x660")
 
         self.audio = None  # numpy stereo float
-        self.sr = AUDIO_SR
+        self.sample_rate = AUDIO_SR
         self._animating = False  # flag to track if animation is running
         self._anim_frame_counter = 0  # counter for skipping slider updates
 
@@ -1902,8 +1898,8 @@ class audioApp(tk.Tk):
         if slider is None:
             return
         try:
-            if self.audio is not None and len(self.audio) > 0 and self.sr > 0:
-                max_time = len(self.audio) / float(self.sr)
+            if self.audio is not None and len(self.audio) > 0 and self.sample_rate > 0:
+                max_time = len(self.audio) / float(self.sample_rate)
             else:
                 max_time = float(self.var_dur.get())
         except Exception:
@@ -1949,9 +1945,9 @@ class audioApp(tk.Tk):
         self.update_idletasks()
 
         # Generate fresh audio with the clamped duration
-        L, R, sr = generate_app(
+        L, R, sample_rate = generate_app(
             dur=dur,
-            sr=self.var_sr.get(),
+            sample_rate=self.var_sr.get(),
             base_f0=self.var_base.get(),
             voices=int(self.var_voices.get()),
             layers=int(self.var_layers.get()),
@@ -1977,7 +1973,7 @@ class audioApp(tk.Tk):
         # ---------------------------------------------------------------
 
         # Store new audio
-        self.sr = sr
+        self.sample_rate = sample_rate
         self.audio = np.stack([L, R], axis=1)
         self._effective_len = len(self.audio)
 
@@ -1989,7 +1985,7 @@ class audioApp(tk.Tk):
             pass
 
         self.status.config(
-            text=f"Generated {dur:.1f}s at {sr} Hz • Voices {int(self.var_voices.get())}"
+            text=f"Generated {dur:.1f}s at {sample_rate} Hz • Voices {int(self.var_voices.get())}"
         )
         self.on_show_frame()
 
@@ -2004,7 +2000,7 @@ class audioApp(tk.Tk):
         )
         if not path:
             return
-        write_wav_stereo(path, self.audio[:, 0], self.audio[:, 1], self.sr)
+        write_wav_stereo(path, self.audio[:, 0], self.audio[:, 1], self.sample_rate)
         self.status.config(text=f"Saved to {path}")
         
     def on_load_wav(self):
@@ -2028,7 +2024,7 @@ class audioApp(tk.Tk):
 
             if wavfile is not None:
                 try:
-                    sr, audio_data = wavfile.read(path)
+                    sample_rate, audio_data = wavfile.read(path)
 
                     # Convert to float32 normalized to [-1, 1]
                     if audio_data.dtype in (np.float32, np.float64):
@@ -2046,7 +2042,7 @@ class audioApp(tk.Tk):
                     n_channels = 1 if audio_float.ndim == 1 else audio_float.shape[1]
                     print(
                         "Loaded with scipy: "
-                        f"sr={sr}, original_dtype={audio_data.dtype}, "
+                        f"sample_rate={sample_rate}, original_dtype={audio_data.dtype}, "
                         f"converted_dtype={audio_float.dtype}, channels={n_channels}"
                     )
                     print(
@@ -2070,7 +2066,7 @@ class audioApp(tk.Tk):
             # Fallback to the built-in wave module when SciPy is unavailable or failed
             if audio_float is None:
                 with wave.open(path, "rb") as wf:
-                    sr = wf.getframerate()
+                    sample_rate = wf.getframerate()
                     n_channels = wf.getnchannels()
                     n_frames = wf.getnframes()
                     sample_width = wf.getsampwidth()
@@ -2135,10 +2131,10 @@ class audioApp(tk.Tk):
 
             # Store loaded audio
             self.audio = audio
-            self.sr = sr
+            self.sample_rate = sample_rate
 
             # Update time slider range
-            dur = len(audio) / sr
+            dur = len(audio) / sample_rate
             self._refresh_time_slider_limit()
             self.var_time.set(0.0)
 
@@ -2146,7 +2142,7 @@ class audioApp(tk.Tk):
             filename = os.path.basename(path)
             final_max = np.max(np.abs(audio))
             self.status.config(
-                text=f"Loaded {filename} • {dur:.1f}s at {sr} Hz • {n_channels} ch • max {final_max:.3f}"
+                text=f"Loaded {filename} • {dur:.1f}s at {sample_rate} Hz • {n_channels} ch • max {final_max:.3f}"
             )
 
             # Update visualizations
@@ -2209,13 +2205,13 @@ class audioApp(tk.Tk):
             return None
         try:
             with self._sd_lock:
-                self._sd_position = int(start_seconds * self.sr)
+                self._sd_position = int(start_seconds * self.sample_rate)
                 self._sd_pos_seq = 0  # Reset sequence on new playback
                 self._sd_last_t = time.perf_counter()  # Initialize timestamp
             self._sd_stop_flag = False
             self._viz_last_seq = -1  # Reset UI sequence tracker
             self._sd_stream = sd.OutputStream(
-                samplerate=self.sr,
+                samplerate=self.sample_rate,
                 channels=2,
                 callback=self._sd_callback,
                 dtype='float32',
@@ -2247,7 +2243,7 @@ class audioApp(tk.Tk):
         self._cancel_animation_timer()
         self._stop_player()
         if self.audio is not None and len(self.audio) > 0:
-            max_start = max(0.0, (len(self.audio) - 1) / self.sr)
+            max_start = max(0.0, (len(self.audio) - 1) / self.sample_rate)
             start_s = min(start_s, max_start)
         # Try streaming playback via sounddevice
         stream = None
@@ -2267,8 +2263,8 @@ class audioApp(tk.Tk):
         self._anim_frame_counter = 0  # reset frame counter
 
         # Initialize stable visualization position
-        self._viz_position = int(start_s * self.sr)
-        self._viz_window_samples = int(VIZ_WINDOW_SECONDS * self.sr)
+        self._viz_position = int(start_s * self.sample_rate)
+        self._viz_window_samples = int(VIZ_WINDOW_SECONDS * self.sample_rate)
 
         self._animate_step()
 
@@ -2321,7 +2317,7 @@ class audioApp(tk.Tk):
                 # Re-seed timestamp so next extrapolation starts from now
                 self._sd_last_t = time.perf_counter()
                 # Update position to match slider
-                new_pos = int(float(value) * self.sr)
+                new_pos = int(float(value) * self.sample_rate)
                 self._sd_position = min(new_pos, len(self.audio) if self.audio is not None else 0)
 
         self.on_show_frame()
@@ -2334,11 +2330,11 @@ class audioApp(tk.Tk):
             or not self.waveform.winfo_exists()
         ):
             return
-        i0 = int(float(self.var_time.get()) * self.sr)
+        i0 = int(float(self.var_time.get()) * self.sample_rate)
         i0 = max(0, min(i0, len(self.audio) - 1))
         # Calculate window size based on current FPS setting
         seconds_per_frame = 1.0 / max(1, self.var_fps.get())
-        win = max(1, int(seconds_per_frame * self.sr))
+        win = max(1, int(seconds_per_frame * self.sample_rate))
         i1 = min(len(self.audio), i0 + win)
         self.viz.show_frame(self.audio[i0:i1])
         self.waveform.show_frame(self.audio[i0:i1])
@@ -2387,14 +2383,14 @@ class audioApp(tk.Tk):
                 # Cap extrapolation to prevent runaway drift during stalls
                 # Allow up to 2× the average callback period or 150ms max
                 elapsed_cap = min(elapsed, max(2.0 * callback_period, 0.150))
-                pos_est = pos + int(elapsed_cap * self.sr)
+                pos_est = pos + int(elapsed_cap * self.sample_rate)
             else:
                 # New callback arrived - use fresh position
                 pos_est = pos
 
                 # Smooth large corrections to avoid visible snaps
                 delta = pos_est - self._viz_last_pos
-                if abs(delta) > int(0.020 * self.sr):  # >20ms correction
+                if abs(delta) > int(0.020 * self.sample_rate):  # >20ms correction
                     # Ease toward the target over one frame (half-step)
                     pos_est = self._viz_last_pos + int(0.5 * delta)
 
@@ -2448,11 +2444,11 @@ class audioApp(tk.Tk):
         # Update slider (only every 3rd frame to reduce overhead)
         self._anim_frame_counter += 1
         if self._anim_frame_counter % 3 == 0:
-            self.var_time.set(self._viz_position / self.sr)
+            self.var_time.set(self._viz_position / self.sample_rate)
 
         # Advance by fixed hop (samples per frame)
         # hop = sample_rate / FPS
-        hop_samples = int(self.sr / max(1, self.var_fps.get()))
+        hop_samples = int(self.sample_rate / max(1, self.var_fps.get()))
         self._viz_position += hop_samples
 
         # Schedule next frame based on FPS setting
