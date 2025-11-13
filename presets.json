@@ -494,6 +494,21 @@
     "comb": 0.0,
     "curve": 2.8000000000000003
   },
+    "Oceanic Thoughts": {
+    "dur": 300.0,
+    "base": 136.1,
+    "voices": 9,
+    "layers": 5,
+    "vdelay": 9.5,
+    "breath": 0.01,
+    "width": 0.05,
+    "bdel": 53.300000000000004,
+    "bamt": 0.02,
+    "even": 0.0,
+    "odd": 0.0,
+    "comb": 0.2,
+    "curve": 3.0500000000000003
+  },
   "Meditation 1": {
     "dur": 470.0,
     "base": 108.0,
@@ -509,21 +524,7 @@
     "comb": 0.02,
     "curve": 2.25
   },
-  "Oceanic Thoughts": {
-    "dur": 300.0,
-    "base": 136.1,
-    "voices": 9,
-    "layers": 5,
-    "vdelay": 9.5,
-    "breath": 0.01,
-    "width": 0.05,
-    "bdel": 53.300000000000004,
-    "bamt": 0.02,
-    "even": 0.0,
-    "odd": 0.0,
-    "comb": 0.2,
-    "curve": 3.0500000000000003
-  },
+
   "Meditation 2": {
     "dur": 600.0,
     "base": 136.1,
@@ -553,5 +554,65 @@
     "odd": 0.0,
     "comb": 0.0,
     "curve": 2.3000000000000003
+  },
+  "Meditation 4": {
+    "dur": 600.0,
+    "base": 138.6,
+    "voices": 3,
+    "layers": 1,
+    "vdelay": 14.0,
+    "breath": 0.28,
+    "width": 0.05,
+    "bdel": 113.8115,
+    "bamt": 0.6,
+    "even": 0.0,
+    "odd": 0.0,
+    "comb": 0.04,
+    "curve": 1.6
+  },
+  "Meditation 5": {
+    "dur": 440.0,
+    "base": 134.8,
+    "voices": 9,
+    "layers": 5,
+    "vdelay": 23.5,
+    "breath": 0.01,
+    "width": 0.05,
+    "bdel": 2.5,
+    "bamt": 0.18,
+    "even": 0.12,
+    "odd": 0.45,
+    "comb": 0.4,
+    "curve": 3.1
+  },
+  "Meditaiton 6": {
+    "dur": 323.0,
+    "base": 164.8,
+    "voices": 6,
+    "layers": 5,
+    "vdelay": 30.0,
+    "breath": 0.065,
+    "width": 0.05,
+    "bdel": 47.3,
+    "bamt": 0.6,
+    "even": 0.52,
+    "odd": 0.55,
+    "comb": 0.42,
+    "curve": 1.3
+  },
+  "Meditation 7": {
+    "dur": 477.0,
+    "base": 67.0,
+    "voices": 2,
+    "layers": 2,
+    "vdelay": 10.5,
+    "breath": 0.085,
+    "width": 0.03,
+    "bdel": 7.0,
+    "bamt": 0.5,
+    "even": 0.05,
+    "odd": 0.02,
+    "comb": 0.06,
+    "curve": 1.75
   }
 }

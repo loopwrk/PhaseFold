@@ -118,6 +118,7 @@ Windows
 ```
 
 1. **Set the seed values**
+
    - Use the dropdown menu under **Presets** to select one of the built‑in sound
      configurations or create your own.
    - Adjust sliders to experiment with duration, frequency, modulation depth and
@@ -130,6 +131,7 @@ Windows
      what the mouse allows.
 
 2. **Generate audio**
+
    - Press **Generate** to render the sound according to your current
      parameters.
 
@@ -284,6 +286,8 @@ It can be used in the app to visualise:
 - Ryoji Ikeda -
   - [Cyclo](https://www.ryojiikeda.com/project/cyclo/)
   - [A](https://www.ryojiikeda.com/project/A/)
+- Prof. John G. Cramer -
+  [The Sound of the Big Bang](https://faculty.washington.edu/jcramer/BBSound_2013.html)
 - [Dynamical Systems](https://en.wikipedia.org/wiki/Dynamical_system)
 - [Strange Attractors](https://www.dynamicmath.xyz/strange-attractors/)
 - Hofstadter & Gödel -

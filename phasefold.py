@@ -31,7 +31,7 @@ if _missing:
     for name in _missing:
         print(f"  - {name}")
     print("Please install them manually with:")
-    print("    python3 -m pip install -r requirements.txt")
+    print("python3 -m pip install -r requirements.txt")
     sys.exit(1)
 
 import matplotlib
